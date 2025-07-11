@@ -4,17 +4,28 @@ const { existsSync } = require('fs');
 
 dotenv.config();
 
-const { DATABASE_PROVIDER } = process.env;
-const databaseProviderDefault = DATABASE_PROVIDER ?? 'postgresql';
+const provider = process.env.DATABASE_PROVIDER ?? 'postgresql';
 
-if (!DATABASE_PROVIDER) {
-  console.warn(`DATABASE_PROVIDER is not set in the .env file, using default: ${databaseProviderDefault}`);
+if (!process.env.DATABASE_PROVIDER) {
+  console.warn(`DATABASE_PROVIDER is not set in the .env file, using default: ${provider}`);
 }
 
-let command = process.argv
-  .slice(2)
-  .join(' ')
-  .replace(/DATABASE_PROVIDER/g, databaseProviderDefault);
+let command = process.argv.slice(2).join(' ');
+
+if (provider === 'sqlite') {
+  console.log('Using SQLite: skipping migrations and running prisma generate...');
+  try {
+    execSync('npx prisma generate --schema=./prisma/sqlite-schema.prisma', { stdio: 'inherit' });
+    console.log('✅ Prisma client generated successfully.');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error generating Prisma client for SQLite.');
+    process.exit(1);
+  }
+}
+
+// Comando normal con reemplazo si no es SQLite
+command = command.replace(/DATABASE_PROVIDER/g, provider);
 
 if (command.includes('rmdir') && existsSync('prisma\\migrations')) {
   try {
